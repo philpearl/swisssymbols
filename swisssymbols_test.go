@@ -266,6 +266,7 @@ func BenchmarkExisting(b *testing.B) {
 	}
 }
 
+// TODO: This is a bit useless as it tests a miss with an empty table only
 func BenchmarkMiss(b *testing.B) {
 	st := New()
 	defer st.Close()

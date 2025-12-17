@@ -8,16 +8,16 @@ type group struct {
 }
 
 type entry struct {
-	seq uint32
+	seq  uint32
+	hash hashValue
 }
 
 type groupControl uint64
 
 const (
-	emptyControl       byte         = 0x80
-	emptyGroupControl  groupControl = 0x8080808080808080
-	controlHashMask                 = 0x7F
-	groupControlExpand              = 0x0101010101010101
+	emptyGroupControl  = 0x8080808080808080
+	controlHashMask    = 0x7F
+	groupControlExpand = 0x0101010101010101
 )
 
 func (g *group) init() {

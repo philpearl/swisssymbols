@@ -91,7 +91,7 @@ func (m *Map) StringToSequence(val string, addNew bool) (seq uint32, found bool)
 
 	groupIndex := (hash >> 7) % l
 	for range t.groups {
-		group := t.getGroup(groupIndex)
+		group := t.groups.getGroup(groupIndex)
 		matches := group.control.findMatches(hash)
 		for matches != 0 {
 			index := matches.firstSet()
@@ -116,7 +116,7 @@ func (m *Map) StringToSequence(val string, addNew bool) (seq uint32, found bool)
 			m.ib.save(seq, m.sb.Save(val))
 
 			// This horrendous line sets the entry at index without doing a bounds check or nil check
-			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{}))) = entry{seq: seq}
+			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{}))) = entry{seq: seq, hash: hash}
 			group.control = (group.control &^ (groupControl(0x80) << (index * 8))) | groupControl(byte(hash&0x7F))<<(index*8)
 			t.used++
 			if t.used > growthThreshold {
@@ -191,6 +191,9 @@ func (m *Map) insertTable(t *table) {
 	depthDifference := 32 - m.tableIndexShift - t.localDepth
 	index := t.index * (depthDifference + 1)
 	tableWidth := 1 << depthDifference
+	if index+tableWidth > len(m.tables) {
+		panic("insertTable would overflow tables slice")
+	}
 	for i := range tableWidth {
 		m.tables[index+i] = t
 	}
