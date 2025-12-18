@@ -10,8 +10,8 @@ type group struct {
 }
 
 type entry struct {
-	seq  uint32
 	hash hashValue
+	seq  uint32
 }
 
 type groupControl uint64
@@ -40,7 +40,7 @@ func (gc groupControl) findMatches(hash hashValue) groupBits {
 	//
 	// Note this does give false positives!
 	matchesAreZero := uint64(gc) ^ (uint64(ctrlHash) * groupControlExpand)
-	return groupBits(((matchesAreZero - 0x0101010101010101) &^ matchesAreZero) & 0x8080808080808080)
+	return groupBits(((matchesAreZero - groupControlExpand) &^ matchesAreZero) & emptyGroupControl)
 }
 
 // findEmpty returns a bits mask of which entries in the group are empty.

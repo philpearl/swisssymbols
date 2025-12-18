@@ -6,7 +6,10 @@ import (
 
 type hashValue uint32
 
-const tableSize = 4096
+const (
+	tableSize = 4096
+	tableMask = tableSize - 1
+)
 
 // Table is a fixed-size hash table containing groups.
 type table struct {
@@ -14,11 +17,11 @@ type table struct {
 
 	// localDepth is the number of bits of the hash used to pick this table in
 	// the extensible hashing scheme.
-	localDepth int
+	localDepth uint16
 	// used is the number of entries in the table
-	used int
+	used uint16
 	// This is the index of this table in the map's table index.
-	index int
+	index uint16
 }
 
 type groups [tableSize]group
@@ -35,6 +38,8 @@ func (t *table) init() {
 	t.index = 0
 }
 
+// getGroup returns the group at index i, but avoids doing a bounds check. Only
+// call it if you know the index is valid!
 func (gs *groups) getGroup(i hashValue) *group {
 	return (*group)(unsafe.Add(unsafe.Pointer(gs), uintptr(i)*unsafe.Sizeof(group{})))
 }
@@ -54,13 +59,14 @@ func hash(key string) hashValue {
 //go:noescape
 func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
 
-func (t *table) insert(m *SymbolTab, ent entry) {
+// Insert is used when splitting a table to insert an entry into the table.
+// Inserting should never cause growth!
+func (t *table) insert(ent entry) {
 	if t == nil {
 		panic("inserting into nil table")
 	}
-	l := hashValue(len(t.groups))
 
-	groupIndex := (ent.hash >> 7) % l
+	groupIndex := (ent.hash >> 7) & tableMask
 	for range t.groups {
 		group := t.groups.getGroup(groupIndex)
 		// We're not looking for matches, only empty spaces
@@ -73,15 +79,11 @@ func (t *table) insert(m *SymbolTab, ent entry) {
 
 			group.control.set(empty.firstSet(), byte(ent.hash&0x7F))
 			t.used++
-			if t.used > growthThreshold {
-				// Table is too full, need to grow
-				m.onGrowthNeeded(t)
-			}
 			return
 		}
 		// Continue to next group in case of hash collision
 		// TODO: try a different probe sequence
-		groupIndex = (groupIndex + 1) % l
+		groupIndex = (groupIndex + 1) & tableMask
 	}
 	panic("table is full")
 }
@@ -127,7 +129,7 @@ func (t *table) split(m *SymbolTab) (oldTab, newTab *table) {
 			if ent.hash&mask != 0 {
 				tab = newTab
 			}
-			tab.insert(m, ent)
+			tab.insert(ent)
 
 			matches = matches.clearFirstBit()
 		}

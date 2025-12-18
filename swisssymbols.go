@@ -15,12 +15,13 @@ import (
 type SymbolTab struct {
 	tables []*table
 
-	tableIndexShift int
 	spareTable      *table
 	sb              stringbank.Stringbank
 	ib              intbank
 	count           int
 	tableCount      int
+	tableIndexShift uint16
+	tableIndexDepth uint16
 }
 
 func New() *SymbolTab {
@@ -87,18 +88,18 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 		panic("nil table found in map")
 	}
 
-	l := hashValue(len(t.groups))
-
-	groupIndex := (hash >> 7) % l
+	groupIndex := (hash >> 7) & tableMask
 	for range t.groups {
 		group := t.groups.getGroup(groupIndex)
 		matches := group.control.findMatches(hash)
 		for matches != 0 {
 			index := matches.firstSet()
 			// This horrendous line gets the entry at index without doing a bounds check or nil check
-			ent := *(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{})))
-			if ent.hash == hash && m.sb.Get(m.ib.lookup(ent.seq)) == val {
-				return ent.seq, true
+			ent := (*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{})))
+			if ent.hash == hash {
+				if seq := ent.seq; m.sb.Get(m.ib.lookup(seq)) == val {
+					return ent.seq, true
+				}
 			}
 			matches = matches.clearFirstBit()
 		}
@@ -128,7 +129,7 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 		}
 		// Continue to next group in case of hash collision
 		// TODO: try a different probe sequence
-		groupIndex = (groupIndex + 1) % l
+		groupIndex = (groupIndex + 1) & tableMask
 	}
 	panic("table is full")
 }
@@ -163,22 +164,10 @@ func (m *SymbolTab) freeTable(t *table) {
 
 // This is called when a table detects it is too full and needs to grow.
 func (m *SymbolTab) onGrowthNeeded(t *table) {
-	globalDepth := 32 - m.tableIndexShift
-	if t.localDepth == globalDepth {
+	if t.localDepth == m.tableIndexDepth {
 		// Need to grow the directory. This will take care of splitting tables as needed.
 		m.grow()
-		globalDepth++
 	}
-
-	// There should be a relationship between index and depth, and we need to update index when local depth changes
-	// 0 0 0 0 0 0
-	//   1 0 0 0 1
-	//.    2 0 1 2
-	//.    3 0 1 3
-	//       2 2 4
-	//       2 2 5
-	//.      3 3 6
-	//.      3 3 7
 
 	// We can just split this table, and split up the slots it is currently
 	// installed in in the directory.
@@ -189,12 +178,9 @@ func (m *SymbolTab) onGrowthNeeded(t *table) {
 }
 
 func (m *SymbolTab) insertTable(t *table) {
-	depthDifference := 32 - m.tableIndexShift - t.localDepth
+	depthDifference := m.tableIndexDepth - t.localDepth
 	index := t.index * (depthDifference + 1)
-	tableWidth := 1 << depthDifference
-	if index+tableWidth > len(m.tables) {
-		panic("insertTable would overflow tables slice")
-	}
+	tableWidth := uint16(1 << depthDifference)
 	for i := range tableWidth {
 		m.tables[index+i] = t
 	}
@@ -214,6 +200,7 @@ func (m *SymbolTab) grow() {
 		newTables[i*2+1] = table
 	}
 	m.tableIndexShift--
+	m.tableIndexDepth++
 	mmap.Free(m.tables)
 	m.tables = newTables
 }
