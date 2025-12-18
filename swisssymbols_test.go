@@ -286,7 +286,7 @@ func BenchmarkMiss(b *testing.B) {
 	}
 }
 
-func ExampleMap() {
+func ExampleSymbolTab() {
 	st := New()
 	defer st.Close()
 	seq, found := st.StringToSequence("10293-ahdb-28383-555", true)
