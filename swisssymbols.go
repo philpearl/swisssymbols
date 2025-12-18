@@ -12,7 +12,7 @@ import (
 	stringbank "github.com/philpearl/stringbank/offheap"
 )
 
-type Map struct {
+type SymbolTab struct {
 	tables []*table
 
 	tableIndexShift int
@@ -23,8 +23,8 @@ type Map struct {
 	tableCount      int
 }
 
-func New() *Map {
-	m := Map{
+func New() *SymbolTab {
+	m := SymbolTab{
 		tableIndexShift: 32,
 	}
 
@@ -38,7 +38,7 @@ func New() *Map {
 	return &m
 }
 
-func (m *Map) Close() {
+func (m *SymbolTab) Close() {
 	m.sb.Close()
 	m.ib.close()
 	for _, t := range m.tables {
@@ -51,24 +51,24 @@ func (m *Map) Close() {
 }
 
 // Len returns the number of unique strings stored
-func (m *Map) Len() int {
+func (m *SymbolTab) Len() int {
 	return m.count
 }
 
 // Cap returns the size of the SymbolTab table
-func (m *Map) Cap() int {
+func (m *SymbolTab) Cap() int {
 	return m.tableCount * tableSize * groupSize
 }
 
 // SymbolSize contains the approximate size of string storage in the symboltable. This will be an over-estimate and
 // includes as yet unused and wasted space
-func (m *Map) SymbolSize() int {
+func (m *SymbolTab) SymbolSize() int {
 	return m.sb.Size()
 }
 
 // SequenceToString looks up a string by its sequence number. Obtain the sequence number
 // for a string with StringToSequence
-func (m *Map) SequenceToString(seq uint32) string {
+func (m *SymbolTab) SequenceToString(seq uint32) string {
 	// Look up the stringbank offset for this sequence number, then get the string
 	offset := m.ib.lookup(seq)
 	return m.sb.Get(offset)
@@ -79,7 +79,7 @@ const growthThreshold = tableSize * groupSize * 3 / 4
 // StringToSequence looks up the string val and returns its sequence number seq. If val does
 // not currently exist in the symbol table, it will add it if addNew is true. found indicates
 // whether val was already present in the SymbolTab
-func (m *Map) StringToSequence(val string, addNew bool) (seq uint32, found bool) {
+func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found bool) {
 	hash := hash(val)
 	t := m.tables[hash>>uint32(m.tableIndexShift)]
 	if t == nil {
@@ -133,7 +133,7 @@ func (m *Map) StringToSequence(val string, addNew bool) (seq uint32, found bool)
 	panic("table is full")
 }
 
-func (m *Map) newTable() *table {
+func (m *SymbolTab) newTable() *table {
 	m.tableCount++
 	if m.spareTable != nil {
 		t := m.spareTable
@@ -149,7 +149,7 @@ func (m *Map) newTable() *table {
 	return t
 }
 
-func (m *Map) freeTable(t *table) {
+func (m *SymbolTab) freeTable(t *table) {
 	m.tableCount--
 	if m.spareTable == nil {
 		t.init()
@@ -162,7 +162,7 @@ func (m *Map) freeTable(t *table) {
 }
 
 // This is called when a table detects it is too full and needs to grow.
-func (m *Map) onGrowthNeeded(t *table) {
+func (m *SymbolTab) onGrowthNeeded(t *table) {
 	globalDepth := 32 - m.tableIndexShift
 	if t.localDepth == globalDepth {
 		// Need to grow the directory. This will take care of splitting tables as needed.
@@ -188,7 +188,7 @@ func (m *Map) onGrowthNeeded(t *table) {
 	m.freeTable(t)
 }
 
-func (m *Map) insertTable(t *table) {
+func (m *SymbolTab) insertTable(t *table) {
 	depthDifference := 32 - m.tableIndexShift - t.localDepth
 	index := t.index * (depthDifference + 1)
 	tableWidth := 1 << depthDifference
@@ -204,7 +204,7 @@ func (m *Map) insertTable(t *table) {
 // of entries in the table index, but only split tables as needed. If we don't
 // need to split a table we double the number of entries that point to the same
 // table.
-func (m *Map) grow() {
+func (m *SymbolTab) grow() {
 	newTables, err := mmap.Alloc[*table](len(m.tables) * 2)
 	if err != nil {
 		panic(err)

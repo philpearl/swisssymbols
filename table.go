@@ -54,7 +54,7 @@ func hash(key string) hashValue {
 //go:noescape
 func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
 
-func (t *table) insert(m *Map, ent entry) {
+func (t *table) insert(m *SymbolTab, ent entry) {
 	if t == nil {
 		panic("inserting into nil table")
 	}
@@ -88,7 +88,7 @@ func (t *table) insert(m *Map, ent entry) {
 
 // split splits the table, returning a new table containing hopefully half of
 // the entries.
-func (t *table) split(m *Map) (oldTab, newTab *table) {
+func (t *table) split(m *SymbolTab) (oldTab, newTab *table) {
 	// We create two whole new tables rather than reusing the existing one,
 	// because we can't enumerate over the old table and modify it at the same
 	// time.
