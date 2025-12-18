@@ -71,7 +71,7 @@ func (t *table) insert(m *SymbolTab, ent entry) {
 			// This horrendous line sets the entry at index without doing a bounds check or nil check
 			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(empty.firstSet())*unsafe.Sizeof(entry{}))) = ent
 
-			group.control = (group.control &^ (groupControl(0x80) << (empty.firstSet() * 8))) | groupControl(byte(ent.hash&0x7F))<<(empty.firstSet()*8)
+			group.control.set(empty.firstSet(), byte(ent.hash&0x7F))
 			t.used++
 			if t.used > growthThreshold {
 				// Table is too full, need to grow

@@ -1,5 +1,7 @@
 package swisssymbols
 
+import "unsafe"
+
 const groupSize = 8
 
 type group struct {
@@ -48,4 +50,9 @@ func (gc groupControl) findEmpty() groupBits {
 
 func (gc groupControl) findFull() groupBits {
 	return groupBits(^uint64(gc) & uint64(emptyGroupControl))
+}
+
+func (gc *groupControl) set(index int, hash byte) {
+	// Only works on little-endian systems, but all systems we see currently are.
+	*(*byte)(unsafe.Add(unsafe.Pointer(gc), uintptr(index)*unsafe.Sizeof(byte(0)))) = hash
 }

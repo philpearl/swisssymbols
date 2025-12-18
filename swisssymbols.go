@@ -117,7 +117,7 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 
 			// This horrendous line sets the entry at index without doing a bounds check or nil check
 			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{}))) = entry{seq: seq, hash: hash}
-			group.control = (group.control &^ (groupControl(0x80) << (index * 8))) | groupControl(byte(hash&0x7F))<<(index*8)
+			group.control.set(index, byte(hash&0x7F))
 			t.used++
 			if t.used > growthThreshold {
 				// Table is too full, need to grow
