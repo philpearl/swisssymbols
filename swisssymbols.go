@@ -97,7 +97,7 @@ func (m *Map) StringToSequence(val string, addNew bool) (seq uint32, found bool)
 			index := matches.firstSet()
 			// This horrendous line gets the entry at index without doing a bounds check or nil check
 			ent := *(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{})))
-			if m.sb.Get(m.ib.lookup(ent.seq)) == val {
+			if ent.hash == hash && m.sb.Get(m.ib.lookup(ent.seq)) == val {
 				return ent.seq, true
 			}
 			matches = matches.clearFirstBit()
@@ -144,8 +144,9 @@ func (m *Map) newTable() *table {
 	if err != nil {
 		panic(err)
 	}
-	tables[0].init()
-	return &tables[0]
+	t := &tables[0]
+	t.init()
+	return t
 }
 
 func (m *Map) freeTable(t *table) {
