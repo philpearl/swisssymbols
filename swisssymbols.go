@@ -97,9 +97,8 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 		panic("nil table found in map")
 	}
 
-	probe := makeProbeSeq(hash>>7, tableMask)
 	groupHash := hashValue(hash & 0x7F)
-	for range t.groups {
+	for probe := makeProbeSeq(hash>>7, tableMask); ; probe = probe.next() {
 		group := t.groups.getGroup(probe.offset)
 		matches := group.control.findMatches(groupHash)
 		for matches != 0 {
@@ -114,34 +113,32 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 			matches = matches.clearFirstBit()
 		}
 
-		if empty := group.control.findEmpty(); empty != 0 {
-			// There is an empty slot, so we've reached the end of the probe
-			// sequence and the key is not present in the map.
-			if !addNew {
-				return 0, false
-			}
-
-			index := empty.firstSet()
-			m.count++
-			seq = uint32(m.count)
-			m.ib.save(seq, m.sb.Save(val))
-
-			// This horrendous line sets the entry at index without doing a bounds check or nil check
-			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{}))) = entry{seq: seq, hash: hash}
-			group.control.set(index, groupHash)
-			t.used++
-			if t.used > growthThreshold {
-				// Table is too full, need to grow
-				m.onGrowthNeeded(t)
-			}
-
-			return seq, false
+		empty := group.control.findEmpty()
+		if empty == 0 {
+			continue
 		}
-		// Continue to next group in case of hash collision
-		// TODO: try a different probe sequence
-		probe = probe.next()
+		// There is an empty slot, so we've reached the end of the probe
+		// sequence and the key is not present in the map.
+		if !addNew {
+			return 0, false
+		}
+
+		index := empty.firstSet()
+		m.count++
+		seq = uint32(m.count)
+		m.ib.save(seq, m.sb.Save(val))
+
+		// This horrendous line sets the entry at index without doing a bounds check or nil check
+		*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{}))) = entry{seq: seq, hash: hash}
+		group.control.set(index, groupHash)
+		t.used++
+		if t.used > growthThreshold {
+			// Table is too full, need to grow
+			m.onGrowthNeeded(t)
+		}
+
+		return seq, false
 	}
-	panic("table is full")
 }
 
 func (m *SymbolTab) newTable() *table {
