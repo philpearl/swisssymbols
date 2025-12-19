@@ -1,6 +1,24 @@
+//go:build goexperiment.simd && amd64
+
 package swisssymbols
 
-import "testing"
+import (
+	"simd/archsimd"
+	"testing"
+)
+
+func TestSIMDSupport(t *testing.T) {
+	var cpu archsimd.X86Features
+	if !cpu.AVX() {
+		t.Error("expected AVX support")
+	}
+	if !cpu.AVX2() {
+		t.Error("expected AVX2 support")
+	}
+	if !cpu.AVX512() {
+		t.Error("expected AVX512 support")
+	}
+}
 
 func TestGroupFindMatches(t *testing.T) {
 	tests := []struct {
@@ -11,33 +29,27 @@ func TestGroupFindMatches(t *testing.T) {
 	}{
 		{
 			name:     "no matches",
-			control:  0x0102030405060708,
+			control:  groupControl{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 			hash:     0x09,
 			expected: 0x0,
 		},
 		{
 			name:     "one match with expected false positive",
-			control:  0x0102030405060708,
+			control:  groupControl{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 			hash:     0x23823803,
-			expected: 0b0000000010000000100000000000000000000000000000000000000000000000,
-			//          7654321076543210765432107654321076543210765432107654321076543210
-			//          7.      6       5       4       3       2       1       0
+			expected: 0b00100000,
 		},
 		{
 			name:     "multiple matches",
-			control:  0x0202030402060702,
+			control:  groupControl{0x02, 0x02, 0x03, 0x04, 0x02, 0x06, 0x07, 0x02},
 			hash:     0x02,
-			expected: 0b1000000010000000000000000000000010000000000000000000000010000000,
-			//          7654321076543210765432107654321076543210765432107654321076543210
-			//          7       6       5       4       3       2       1       0
+			expected: 0b11001001,
 		},
 		{
 			name:     "all matches",
-			control:  0x0505050505050505,
+			control:  groupControl{0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05},
 			hash:     0x05,
-			expected: 0b1000000010000000100000001000000010000000100000001000000010000000,
-			//          7654321076543210765432107654321076543210765432107654321076543210
-			//          7       6       5       4       3       2       1       0
+			expected: 0b11111111,
 		},
 	}
 
@@ -59,23 +71,23 @@ func TestGroupFindEmpty(t *testing.T) {
 	}{
 		{
 			name:     "no empty",
-			control:  0x0102030405060708,
+			control:  groupControl{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 			expected: 0x0,
 		},
 		{
 			name:     "one empty",
-			control:  0x8002030405060708,
-			expected: 0b1000000000000000000000000000000000000000000000000000000000000000,
+			control:  groupControl{0x80, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+			expected: 0b10000000,
 		},
 		{
 			name:     "multiple empty",
-			control:  0x8002_0304_0506_0780,
-			expected: 0b1000000000000000000000000000000000000000000000000000000010000000,
+			control:  groupControl{0x80, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x80},
+			expected: 0b10000001,
 		},
 		{
 			name:     "all empty",
-			control:  0x8080808080808080,
-			expected: 0x8080808080808080,
+			control:  groupControl{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80},
+			expected: 0b11111111,
 		},
 	}
 

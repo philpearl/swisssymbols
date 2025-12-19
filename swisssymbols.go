@@ -75,6 +75,15 @@ func (m *SymbolTab) SequenceToString(seq uint32) string {
 	return m.sb.Get(offset)
 }
 
+// Experiments to try
+// - [X] Lower growth threshold - seems to help!
+// - [X] use full hash - wildly better!
+// - [X] bigger machine without these above changes (was it swapping?) - much slower again
+// - [X] Just use full hash, not lower growth threshold - seems good
+// - [ ] instrinsics for bit ops
+// - [ ] different probe sequence
+// - [ ] prefetch next group in probe sequence
+
 const growthThreshold = tableSize * groupSize * 3 / 4
 
 // StringToSequence looks up the string val and returns its sequence number seq. If val does

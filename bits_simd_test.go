@@ -1,4 +1,4 @@
-//go:build !goexperiment.simd || !amd64
+//go:build goexperiment.simd && amd64
 
 package swisssymbols
 
@@ -13,53 +13,53 @@ func TestBitsFirstSet(t *testing.T) {
 		{
 			name:     "no bits set",
 			bits:     0x0,
-			expected: 8, // TrailingZeros returns 64 if no bits are set
+			expected: 16, // TrailingZeros returns top value if no bits are set
 		},
 		{
 			name:     "top bit set",
-			bits:     0x8000_0000_0000_0000,
+			bits:     0b10000000,
 			expected: 7,
 		},
 		{
 			name:     "second top bit set",
-			bits:     0x0080_0000_0000_0000,
+			bits:     0b01000000,
 			expected: 6,
 		},
 		{
 			name:     "third top bit set",
-			bits:     0x0000_8000_0000_0000,
+			bits:     0b00100000,
 			expected: 5,
 		},
 		{
 			name:     "4th top bit set",
-			bits:     0x0000_0080_0000_0000,
+			bits:     0b00010000,
 			expected: 4,
 		},
 		{
 			name:     "5th top bit set",
-			bits:     0x0000_0000_8000_0000,
+			bits:     0b00001000,
 			expected: 3,
 		},
 		{
 			name:     "6th top bit set",
-			bits:     0x0000_0000_0080_0000,
+			bits:     0b00000100,
 			expected: 2,
 		},
 
 		{
 			name:     "second bottom bit set",
-			bits:     0x8000,
+			bits:     0b00000010,
 			expected: 1,
 		},
 
 		{
 			name:     "bottom bit set",
-			bits:     0x80,
+			bits:     0b00000001,
 			expected: 0,
 		},
 		{
 			name:     "multiple bits set",
-			bits:     0x8080_8080_8080_8080,
+			bits:     0b11111111,
 			expected: 0,
 		},
 	}
@@ -75,7 +75,7 @@ func TestBitsFirstSet(t *testing.T) {
 }
 
 func TestBitsEnumerate(t *testing.T) {
-	bits := groupBits(0x8080_8080_8080_8080)
+	bits := groupBits(0b11111111)
 
 	exp := 0
 	for {
@@ -84,7 +84,7 @@ func TestBitsEnumerate(t *testing.T) {
 			t.Errorf("expected index %d, got %d", exp, index)
 		}
 
-		if index == 8 {
+		if index == 16 {
 			break
 		}
 		bits = bits.clearFirstBit()
