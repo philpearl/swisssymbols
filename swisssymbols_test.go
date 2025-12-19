@@ -219,6 +219,24 @@ func BenchmarkSymbolTab(b *testing.B) {
 	}
 }
 
+func BenchmarkSymbolTabSmall(b *testing.B) {
+	symbols := make([]string, 10_000)
+	for i := range symbols {
+		symbols[i] = strconv.Itoa(i)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		st := New()
+		for _, sym := range symbols {
+			st.StringToSequence(sym, true)
+		}
+		st.Close()
+	}
+}
+
 func BenchmarkSequenceToString(b *testing.B) {
 	st := New()
 	defer st.Close()

@@ -6,6 +6,8 @@ import (
 
 type hashValue uint32
 
+const hashBits = 32
+
 const (
 	tableSize = 4096
 	tableMask = tableSize - 1
@@ -110,7 +112,7 @@ func (t *table) split(m *SymbolTab) (oldTab, newTab *table) {
 	// We create a new table, then split the data in the current table between
 	// the current table and the new, based on the hash bit that the new local
 	// depth exposes.
-	mask := hashValue(1 << (32 - t.localDepth - 1))
+	mask := hashValue(1 << (hashBits - t.localDepth - 1))
 
 	for i := range t.groups {
 		group := t.groups.getGroup(hashValue(i))

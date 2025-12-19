@@ -26,7 +26,7 @@ type SymbolTab struct {
 
 func New() *SymbolTab {
 	m := SymbolTab{
-		tableIndexShift: 32,
+		tableIndexShift: hashBits,
 	}
 
 	var err error
@@ -82,7 +82,7 @@ const growthThreshold = tableSize * groupSize * 3 / 4
 // whether val was already present in the SymbolTab
 func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found bool) {
 	hash := hash(val)
-	t := m.tables[hash>>uint32(m.tableIndexShift)]
+	t := m.tables[hash>>hashValue(m.tableIndexShift)]
 	if t == nil {
 		// remove repeated nilcheck by checking here
 		panic("nil table found in map")
