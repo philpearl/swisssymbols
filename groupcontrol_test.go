@@ -45,7 +45,7 @@ func TestGroupFindMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.control.findMatches(tt.hash)
+			result := tt.control.findMatches(tt.hash & 0x7F)
 			if result != tt.expected {
 				t.Errorf("expected bits %08b, got %08b", tt.expected, result)
 			}

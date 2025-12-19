@@ -18,8 +18,7 @@ func (g *group) init() {
 
 // findMatches returns a bits mask of which entries in the group match the given
 // hash value.
-func (gc groupControl) findMatches(hash hashValue) groupBits {
-	ctrlHash := byte(hash & controlHashMask)
+func (gc groupControl) findMatches(ctrlHash hashValue) groupBits {
 	// Find the entries where the control byte matches ctrlHash
 	//
 	// We expand the ctrlHash to a groupControl where each byte is ctrlHash,
@@ -42,7 +41,7 @@ func (gc groupControl) findFull() groupBits {
 	return groupBits(^uint64(gc) & uint64(emptyGroupControl))
 }
 
-func (gc *groupControl) set(index int, hash byte) {
+func (gc *groupControl) set(index int, hash hashValue) {
 	// Only works on little-endian systems, but all systems we see currently are.
-	*(*byte)(unsafe.Add(unsafe.Pointer(gc), uintptr(index)*unsafe.Sizeof(byte(0)))) = hash
+	*(*byte)(unsafe.Add(unsafe.Pointer(gc), uintptr(index)*unsafe.Sizeof(byte(0)))) = byte(hash)
 }

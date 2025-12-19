@@ -68,9 +68,10 @@ func (t *table) insert(ent entry) {
 		panic("inserting into nil table")
 	}
 
-	groupIndex := (ent.hash >> 7) & tableMask
+	probe := makeProbeSeq(ent.hash>>7, tableMask)
+
 	for range t.groups {
-		group := t.groups.getGroup(groupIndex)
+		group := t.groups.getGroup(probe.offset)
 		// We're not looking for matches, only empty spaces
 		if empty := group.control.findEmpty(); empty != 0 {
 			// There is an empty slot, so we've reached the end of the probe
@@ -79,13 +80,13 @@ func (t *table) insert(ent entry) {
 			// This horrendous line sets the entry at index without doing a bounds check or nil check
 			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(empty.firstSet())*unsafe.Sizeof(entry{}))) = ent
 
-			group.control.set(empty.firstSet(), byte(ent.hash&0x7F))
+			group.control.set(empty.firstSet(), ent.hash&0x7F)
 			t.used++
 			return
 		}
 		// Continue to next group in case of hash collision
 		// TODO: try a different probe sequence
-		groupIndex = (groupIndex + 1) & tableMask
+		probe = probe.next()
 	}
 	panic("table is full")
 }
@@ -138,4 +139,24 @@ func (t *table) split(m *SymbolTab) (oldTab, newTab *table) {
 	}
 
 	return oldTab, newTab
+}
+
+type probeSeq struct {
+	mask   hashValue
+	offset hashValue
+	index  hashValue
+}
+
+func makeProbeSeq(hash, mask hashValue) probeSeq {
+	return probeSeq{
+		mask:   mask,
+		offset: hash & mask,
+		index:  0,
+	}
+}
+
+func (s probeSeq) next() probeSeq {
+	s.index++
+	s.offset = (s.offset + s.index) & s.mask
+	return s
 }

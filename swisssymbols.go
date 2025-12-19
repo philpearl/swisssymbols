@@ -80,8 +80,8 @@ func (m *SymbolTab) SequenceToString(seq uint32) string {
 // - [X] use full hash - wildly better!
 // - [X] bigger machine without these above changes (was it swapping?) - much slower again
 // - [X] Just use full hash, not lower growth threshold - seems good
-// - [ ] instrinsics for bit ops
-// - [ ] different probe sequence
+// - [ ] instrinsics for bit ops - can't make a version that works without AVX512
+// - [X] different probe sequence. Maybe a bit better?
 // - [ ] prefetch next group in probe sequence
 
 const growthThreshold = tableSize * groupSize * 3 / 4
@@ -97,10 +97,11 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 		panic("nil table found in map")
 	}
 
-	groupIndex := (hash >> 7) & tableMask
+	probe := makeProbeSeq(hash>>7, tableMask)
+	groupHash := hashValue(hash & 0x7F)
 	for range t.groups {
-		group := t.groups.getGroup(groupIndex)
-		matches := group.control.findMatches(hash)
+		group := t.groups.getGroup(probe.offset)
+		matches := group.control.findMatches(groupHash)
 		for matches != 0 {
 			index := matches.firstSet()
 			// This horrendous line gets the entry at index without doing a bounds check or nil check
@@ -127,7 +128,7 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 
 			// This horrendous line sets the entry at index without doing a bounds check or nil check
 			*(*entry)(unsafe.Add(unsafe.Pointer(&group.entries), uintptr(index)*unsafe.Sizeof(entry{}))) = entry{seq: seq, hash: hash}
-			group.control.set(index, byte(hash&0x7F))
+			group.control.set(index, groupHash)
 			t.used++
 			if t.used > growthThreshold {
 				// Table is too full, need to grow
@@ -138,7 +139,7 @@ func (m *SymbolTab) StringToSequence(val string, addNew bool) (seq uint32, found
 		}
 		// Continue to next group in case of hash collision
 		// TODO: try a different probe sequence
-		groupIndex = (groupIndex + 1) & tableMask
+		probe = probe.next()
 	}
 	panic("table is full")
 }
